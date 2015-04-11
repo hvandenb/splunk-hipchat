@@ -5,14 +5,14 @@ import urllib
 import urllib2
 
 if __name__ == "__main__":
-    # Parse input params. These come from the wrapper shell script.
+    # Parse input params. These come from the wrapper shell script
     parser = argparse.ArgumentParser()
     parser.add_argument('name_of_saved_search')
     parser.add_argument('url')
     parser.add_argument('working_directory')
     args = parser.parse_args()
 
-    # Redirect logs to the same directory as this script lives in.
+    # Redirect logs to the same directory as this script lives in
     sys.stdout = open(args.working_directory + '/splunkToHipchat.stdout', 'w')
     sys.stderr = open(args.working_directory + '/splunkToHipchat.stderr', 'w')
 
@@ -21,6 +21,11 @@ if __name__ == "__main__":
     SPLUNK_PORT = 8089
     SPLUNK_USERNAME = "admin"
     SPLUNK_PASSWORD = "changeme"
+
+    # The delimiter that follows the name of your project at the front of the Splunk alert.
+    # E.g. set this to "_" if your alert convention is "PROJECT1_LOW_DISK_SPACE" or set it to " " if
+    # your alert is called "Project1 Low Disk Space".
+    SPLUNK_ALERT_PREFIX_DELIMITER = " "
 
     HIPCHAT_BASE_URL = "https://HIPCHAT_URL"
     HIPCHAT_AUTH_TOKEN = "YOUR_AUTH_TOKEN"
@@ -49,7 +54,7 @@ if __name__ == "__main__":
         return alert_details["alert.severity"]
 
     def retrieve_hipchat_room_from_alert_name(alert_name):
-        splunk_alert_prefix = alert_name.split('_', 1)[0]
+        splunk_alert_prefix = alert_name.split(SPLUNK_ALERT_PREFIX_DELIMITER, 1)[0]
         if splunk_alert_prefix in SPLUNK_ALERT_PREFIX_TO_HIPCHAT_ROOM_DICT:
             hipchat_room = SPLUNK_ALERT_PREFIX_TO_HIPCHAT_ROOM_DICT[splunk_alert_prefix]
         else:
@@ -64,24 +69,19 @@ if __name__ == "__main__":
                   'notify': notify}
         data = urllib.urlencode(values)
         req = urllib2.Request(url, data)
-        print("URL = " + url)
-        print("data = " + data)
         response = urllib2.urlopen(req)
         response.read()
 
     # Build HipChat message
     hipchat_message_content = args.name_of_saved_search + ": " + retrieve_splunk_search_results(args.url,
                                                                                                 splunk_service)
-    print("hipchat_message_content = " + hipchat_message_content)
-
     splunk_alert_severity = retrieve_splunk_alert_severity(args.name_of_saved_search, splunk_service)
 
     hipchat_alert_colour = SPLUNK_SEVERITY_TO_HIPCHAT_COLOUR_DICT[splunk_alert_severity]
-    print("hipchat_alert_colour = " + hipchat_alert_colour)
 
     hipchat_notify = SPLUNK_SEVERITY_TO_HIPCHAT_NOTIFY_DICT[splunk_alert_severity]
-    print("hipchat_notify = " + hipchat_notify)
+
     hipchat_room_name = retrieve_hipchat_room_from_alert_name(args.name_of_saved_search)
 
-    # Send
+    # Send HipChat message
     send_hipchat_notification(hipchat_room_name, hipchat_message_content, hipchat_notify, hipchat_alert_colour)
